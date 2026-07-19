@@ -4,6 +4,19 @@ Este arquivo reúne anotações, descrições e principais casos de uso das bibl
 
 ---
 
+## Sumário de Navegação
+* [1. Análise e Manipulação de Dados](#1-análise-e-manipulação-de-dados)
+* [2. Inteligência Artificial e LLMs](#2-inteligência-artificial-e-llms)
+* [3. Automação e RPA (Web Scraping)](#3-automação-e-rpa-web-scraping)
+* [4. Desenvolvimento Web](#4-desenvolvimento-web)
+* [5. Visualização de Dados](#5-visualização-de-dados)
+* [6. Leitura e Processamento de Documentos](#6-leitura-e-processamento-de-documentos)
+* [7. OCR (Reconhecimento de Texto)](#7-ocr-reconhecimento-de-texto)
+* [8. Processamento Assíncrono](#8-processamento-assíncrono)
+* [9. Modelos de IA](#9-modelos-de-ia)
+
+---
+
 ## 1. ANÁLISE E MANIPULAÇÃO DE DADOS
 
 ### Pandas
@@ -58,7 +71,7 @@ Principais usos:
 
 ---
 
-## 2. INTELIGÊNCIA ARTIFICIAL
+## 2. INTELIGÊNCIA ARTIFICIAL E LLMS
 
 ### Scikit-Learn
 Biblioteca de Machine Learning tradicional.
@@ -124,7 +137,7 @@ Possui modelos para:
 
 ---
 
-## 3. AUTOMAÇÃO E RPA
+## 3. AUTOMAÇÃO E RPA (WEB SCRAPING)
 
 ### Requests
 Biblioteca para realizar requisições HTTP.
@@ -230,6 +243,16 @@ Características:
 - Alto desempenho.
 
 Muito utilizado em microsserviços.
+
+### Pydantic
+Biblioteca para validação de dados utilizando classes Python.
+
+Principais usos:
+- Validar entrada de dados.
+- Converter tipos automaticamente.
+- Garantir consistência das informações.
+
+Muito utilizada junto com FastAPI.
 
 ---
 
@@ -378,7 +401,7 @@ Muito utilizado para aumentar o desempenho das aplicações.
 
 ---
 
-## 9. MODELOS DE IA (LLMs)
+## 9. MODELOS DE IA
 
 ### OpenAI API
 Serviço que disponibiliza modelos de Linguagem (LLMs) através de API.
