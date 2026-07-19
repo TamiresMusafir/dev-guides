@@ -23,7 +23,6 @@ Os tutoriais são divididos por ecossistemas e tecnologias, mapeando desde a con
 ## Tecnologias Cobertas (por enquanto!)
 
 - **Python:** Ecossistema Django, gerenciamento de ambientes virtuais (`venv`) e arquitetura MVT.
-- **Ruby:** Framework Web Ruby on Rails, gerenciamento de banco de dados com PostgreSQL e reaproveitamento de views.
 - **Boas Práticas:** Padrões de desenvolvimento, organização de arquivos estáticos globais e comandos de console essenciais.
 
 ---
