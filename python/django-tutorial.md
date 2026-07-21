@@ -31,6 +31,11 @@ python3 -m venv .venv
 ```bash
 source .venv/bin/activate
 ```
+ou liberando o acesso aos pacotes globais
+```bash
+python3 -m venv --system-site-packages .venv
+```
+
 *Após a ativação, o terminal deverá exibir algo semelhante a:*
 ```bash
 (.venv) usuario@maquina:~/arsenal$
