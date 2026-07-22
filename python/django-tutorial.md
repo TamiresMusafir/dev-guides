@@ -155,28 +155,217 @@ home/
 
 ## 3. Criando Models
 
-### Criar as classes/modelos
-No arquivo `home/models.py`:
+Os **Models** representam as tabelas do banco de dados. Cada classe criada em `models.py` corresponde a uma tabela, e cada atributo da classe corresponde a uma coluna.
+
+### Criar o Model
+
+No arquivo `processos/models.py`:
+
 ```python
 from django.db import models
 
 class Processo(models.Model):
     numero = models.CharField(max_length=20)
+    descricao = models.CharField(max_length=50)
+    data_abertura = models.DateField()
+    valor_estimado = models.DecimalField(max_digits=15, decimal_places=2)
+
+    def __str__(self):
+        return self.numero
 ```
 
-### Criar os arquivos de migração
-Analisa as alterações nos models e gera os arquivos de histórico na pasta `migrations/`:
+> **Observação:** O método `__str__()` funciona de maneira semelhante ao `toString()` do Java. Ele define como o objeto será exibido no Admin do Django, no Shell e em outras partes do framework.
+
+---
+
+### Gerar as migrações
+
+Analisa os Models do projeto e gera os arquivos de migração.
+
+> **Esse comando NÃO altera o banco de dados.**
+
 ```bash
 python manage.py makemigrations
 ```
 
+Será criada uma pasta (caso ainda não exista):
+
+```text
+processos/
+└── migrations/
+    ├── __init__.py
+    └── 0001_initial.py
+```
+
+Esse arquivo contém as instruções que o Django utilizará para criar ou modificar as tabelas do banco de dados.
+
+---
+
+### Verificar o status das migrações
+
+Permite verificar quais migrações já foram aplicadas ao banco.
+
+```bash
+python manage.py showmigrations
+```
+
+Antes de executar o `migrate`:
+
+```text
+processos
+ [ ] 0001_initial
+```
+
+- `[ ]` → A migração existe, mas ainda **não foi aplicada**.
+
+Após executar o `migrate`:
+
+```text
+processos
+ [X] 0001_initial
+```
+
+- `[X]` → A migração já foi aplicada ao banco de dados.
+
+---
+
 ### Aplicar as migrações no banco
-Efetivamente cria ou altera as tabelas no banco de dados:
+
+Cria ou altera efetivamente as tabelas no banco de dados.
+
 ```bash
 python manage.py migrate
 ```
 
+Fluxo completo:
+
+```text
+models.py
+     │
+     ▼
+python manage.py makemigrations
+     │
+     ▼
+migrations/0001_initial.py
+     │
+     ▼
+python manage.py migrate
+     │
+     ▼
+Banco de Dados (db.sqlite3)
+```
+
 ---
+
+### Visualizar as tabelas do banco (SQLite)
+
+Abrir o banco de dados:
+
+```bash
+sqlite3 db.sqlite3
+```
+
+Listar todas as tabelas:
+
+```sql
+.tables
+```
+
+Exemplo:
+
+```text
+auth_user
+django_session
+processos_processo
+```
+
+Visualizar a estrutura de uma tabela:
+
+```sql
+.schema processos_processo
+```
+
+Visualizar todos os registros armazenados:
+
+```sql
+SELECT * FROM processos_processo;
+```
+
+Sair do SQLite:
+
+```sql
+.quit
+```
+
+---
+
+### Por que a tabela se chama `processos_processo`?
+
+O Django cria automaticamente o nome da tabela utilizando a seguinte convenção:
+
+```text
+nome_do_app + "_" + nome_do_model
+```
+
+Exemplo:
+
+```text
+App: processos
+Model: Processo
+```
+
+Resultado:
+
+```text
+processos_processo
+```
+
+Isso evita conflitos caso existam Models com o mesmo nome em Apps diferentes.
+
+Por exemplo:
+
+```text
+financeiro/
+└── models.py
+    └── class Processo(models.Model)
+```
+
+As tabelas seriam:
+
+```text
+processos_processo
+financeiro_processo
+```
+
+Assim o Django consegue identificar exatamente a qual App cada tabela pertence.
+
+---
+
+### Relação entre Model e Banco de Dados
+
+Cada classe criada em `models.py` representa uma tabela no banco.
+
+Exemplo:
+
+```python
+class Processo(models.Model):
+    numero = models.CharField(max_length=20)
+    descricao = models.CharField(max_length=50)
+    data_abertura = models.DateField()
+    valor_estimado = models.DecimalField(max_digits=15, decimal_places=2)
+```
+
+Após executar as migrações, será criada uma tabela semelhante a:
+
+| Coluna | Tipo |
+|---------|------|
+| id | Inteiro (criado automaticamente pelo Django) |
+| numero | VARCHAR(20) |
+| descricao | VARCHAR(50) |
+| data_abertura | DATE |
+| valor_estimado | DECIMAL(15,2) |
+
+Ou seja, o **Model é a representação da tabela em Python**, enquanto o SQLite (ou outro banco) armazena efetivamente os dados.
 
 ## 4. Criar Usuário Admin
 
