@@ -4,6 +4,8 @@
 
 Configurar o Ollama para utilizar a GPU integrada AMD Radeon Vega 8 através do Vulkan, evitando que o modelo de IA fique sendo executado exclusivamente pela CPU.
 
+Também configurar o **Open WebUI** através do Docker para fornecer uma interface gráfica para conversar com os modelos do Ollama.
+
 ### Ambiente
 
 * Sistema: Ubuntu 25.04
@@ -12,7 +14,9 @@ Configurar o Ollama para utilizar a GPU integrada AMD Radeon Vega 8 através do 
 * GPU: AMD Radeon Vega 8
 * GPU: integrada (iGPU)
 * Ollama: 0.35.0
-* Modelo: Qwen 3.5 4B
+* Modelo inicial: Qwen 3.5 4B
+* Modelo testado posteriormente: Ministral 3 3B
+* Open WebUI: Docker
 
 ---
 
@@ -180,6 +184,22 @@ Environment="OLLAMA_IGPU_ENABLE=1"
 Environment="GGML_VK_VISIBLE_DEVICES=0"
 ```
 
+Posteriormente, foi adicionada também a configuração necessária para permitir que o Open WebUI, executado em Docker, acessasse o Ollama:
+
+```ini
+Environment="OLLAMA_HOST=0.0.0.0:11434"
+```
+
+A configuração final ficou:
+
+```ini
+[Service]
+Environment="OLLAMA_VULKAN=1"
+Environment="OLLAMA_IGPU_ENABLE=1"
+Environment="GGML_VK_VISIBLE_DEVICES=0"
+Environment="OLLAMA_HOST=0.0.0.0:11434"
+```
+
 ## O que cada configuração faz?
 
 ### OLLAMA_VULKAN
@@ -230,6 +250,34 @@ Portanto:
 ```
 
 Foi escolhido o dispositivo `0`.
+
+---
+
+### OLLAMA_HOST
+
+```ini
+Environment="OLLAMA_HOST=0.0.0.0:11434"
+```
+
+Define o endereço em que o servidor do Ollama ficará disponível.
+
+Inicialmente, o Ollama estava acessível somente através de:
+
+```text
+127.0.0.1:11434
+```
+
+Isso funcionava para programas executados diretamente no computador, mas o Open WebUI estava dentro de um container Docker.
+
+O container não conseguia acessar o Ollama através de `127.0.0.1`, porque dentro do container `localhost` se refere ao próprio container.
+
+Por isso foi utilizado:
+
+```text
+0.0.0.0:11434
+```
+
+Isso permite que o Ollama aceite conexões vindas do Docker.
 
 ---
 
@@ -361,9 +409,277 @@ Isso indica que o modelo passou a ser executado pelo backend de GPU do Ollama.
 
 ---
 
-# Resultado final
+# 13. Instalar o Open WebUI
 
-Antes:
+O Open WebUI foi instalado utilizando Docker.
+
+Primeiro, foi executado:
+
+```bash
+docker run -d \
+  -p 3000:8080 \
+  --add-host=host.docker.internal:host-gateway \
+  -v open-webui:/app/backend/data \
+  -e WEBUI_SECRET_KEY=your-secret-key \
+  --name open-webui \
+  --restart always \
+  ghcr.io/open-webui/open-webui:main
+```
+
+## O que esse comando faz?
+
+### Porta
+
+```bash
+-p 3000:8080
+```
+
+A porta `8080` do container é disponibilizada na porta `3000` do computador.
+
+Assim, o Open WebUI pode ser acessado em:
+
+```text
+http://localhost:3000
+```
+
+---
+
+### Acesso ao host
+
+```bash
+--add-host=host.docker.internal:host-gateway
+```
+
+Cria dentro do container o endereço:
+
+```text
+host.docker.internal
+```
+
+Esse endereço permite que o container encontre o computador host.
+
+Isso é necessário porque o Ollama está rodando no Ubuntu, enquanto o Open WebUI está rodando dentro do Docker.
+
+A comunicação fica:
+
+```text
+Open WebUI
+   ↓
+Docker
+   ↓
+host.docker.internal
+   ↓
+Ollama
+   ↓
+localhost:11434 / servidor Ollama
+```
+
+---
+
+### Volume
+
+```bash
+-v open-webui:/app/backend/data
+```
+
+Cria um volume Docker para armazenar os dados do Open WebUI.
+
+Isso permite manter os dados mesmo que o container seja recriado.
+
+---
+
+### Reinicialização automática
+
+```bash
+--restart always
+```
+
+Faz o Docker tentar iniciar novamente o Open WebUI caso o container seja reiniciado.
+
+---
+
+# 14. Verificar o container do Open WebUI
+
+Foi utilizado:
+
+```bash
+docker ps
+```
+
+O container apareceu como:
+
+```text
+open-webui
+0.0.0.0:3000->8080/tcp
+```
+
+Isso significa:
+
+```text
+Computador
+localhost:3000
+       ↓
+Docker
+       ↓
+Open WebUI
+porta 8080
+```
+
+---
+
+# 15. Configurar o Ollama no Open WebUI
+
+Dentro do Open WebUI, foi configurado o endereço do Ollama como:
+
+```text
+http://host.docker.internal:11434
+```
+
+O Open WebUI utiliza esse endereço para acessar o servidor Ollama que está rodando no computador.
+
+---
+
+# 16. Testar a comunicação entre Docker e Ollama
+
+Antes da configuração correta do `OLLAMA_HOST`, o container não conseguia acessar o Ollama:
+
+```text
+curl: (7) Failed to connect to host.docker.internal port 11434
+```
+
+Isso acontecia porque o Ollama estava escutando somente em:
+
+```text
+127.0.0.1:11434
+```
+
+Depois de configurar:
+
+```ini
+Environment="OLLAMA_HOST=0.0.0.0:11434"
+```
+
+e reiniciar o serviço, foi realizado o teste:
+
+```bash
+docker exec open-webui curl http://host.docker.internal:11434/api/tags
+```
+
+O Ollama passou a responder com a lista de modelos:
+
+```json
+{
+  "models": [
+    {
+      "name": "qwen3.5:4b",
+      "model": "qwen3.5:4b"
+    }
+  ]
+}
+```
+
+Isso confirmou que:
+
+```text
+Docker
+   ↓
+Open WebUI
+   ↓
+host.docker.internal:11434
+   ↓
+Ollama
+```
+
+estava funcionando corretamente.
+
+---
+
+# 17. Utilizar modelos no Open WebUI
+
+Depois que a comunicação foi estabelecida, os modelos instalados no Ollama podem ser utilizados pelo Open WebUI.
+
+Por exemplo:
+
+```bash
+ollama list
+```
+
+pode mostrar modelos como:
+
+```text
+qwen3.5:4b
+ministral-3:3b
+```
+
+Para baixar um novo modelo:
+
+```bash
+ollama pull ministral-3:3b
+```
+
+Depois disso, o modelo pode ser selecionado no Open WebUI.
+
+## Modelo utilizado nos testes
+
+Além do Qwen 3.5 4B, foi testado:
+
+```bash
+ollama run ministral-3:3b
+```
+
+O `ministral-3:3b` apresentou resposta significativamente mais rápida no terminal e mostrou bom desempenho para explicações didáticas.
+
+Exemplo de teste:
+
+```text
+Explique o que é um ponteiro em C para uma pessoa que está aprendendo
+programação pela primeira vez. Use um exemplo simples.
+```
+
+O modelo conseguiu produzir uma explicação estruturada, incluindo conceito, exemplos de código, operadores `&` e `*`, aplicações e riscos.
+
+---
+
+# 18. Arquitetura final
+
+A configuração completa ficou aproximadamente assim:
+
+```text
+                    ┌──────────────────────┐
+                    │      Open WebUI      │
+                    │       Docker         │
+                    │      :3000           │
+                    └──────────┬───────────┘
+                               │
+                               │ HTTP
+                               ↓
+                    host.docker.internal
+                         :11434
+                               │
+                               ↓
+                    ┌──────────────────────┐
+                    │        Ollama        │
+                    │      systemd         │
+                    └──────────┬───────────┘
+                               │
+                               ↓
+                            Vulkan
+                               │
+                               ↓
+                             RADV
+                               │
+                               ↓
+                    ┌──────────────────────┐
+                    │   Radeon Vega 8      │
+                    │        iGPU          │
+                    └──────────────────────┘
+```
+
+---
+
+# 19. Resultado final
+
+Antes da configuração:
 
 ```text
 Qwen 3.5 4B
@@ -389,7 +705,27 @@ Qwen 3.5 4B
 Radeon Vega 8
 ```
 
-## Configuração final
+Com o Open WebUI:
+
+```text
+Usuário
+   ↓
+Open WebUI
+   ↓
+Docker
+   ↓
+host.docker.internal:11434
+   ↓
+Ollama
+   ↓
+Vulkan
+   ↓
+Radeon Vega 8
+```
+
+---
+
+# Configuração final
 
 Arquivo:
 
@@ -404,9 +740,14 @@ Conteúdo:
 Environment="OLLAMA_VULKAN=1"
 Environment="OLLAMA_IGPU_ENABLE=1"
 Environment="GGML_VK_VISIBLE_DEVICES=0"
+Environment="OLLAMA_HOST=0.0.0.0:11434"
 ```
 
-## Comandos principais para lembrar
+---
+
+# Comandos principais para lembrar
+
+## Ollama
 
 Verificar Ollama:
 
@@ -414,10 +755,22 @@ Verificar Ollama:
 systemctl status ollama --no-pager
 ```
 
-Verificar GPU/Vulkan:
+Verificar versão:
 
 ```bash
-vulkaninfo --summary
+ollama version
+```
+
+Listar modelos:
+
+```bash
+ollama list
+```
+
+Executar um modelo:
+
+```bash
+ollama run ministral-3:3b
 ```
 
 Verificar uso do modelo:
@@ -450,7 +803,47 @@ Reiniciar:
 sudo systemctl restart ollama
 ```
 
-## Observação sobre a memória da GPU
+---
+
+## Vulkan
+
+Verificar GPU:
+
+```bash
+vulkaninfo --summary
+```
+
+---
+
+## Docker / Open WebUI
+
+Ver containers:
+
+```bash
+docker ps
+```
+
+Ver logs do Open WebUI:
+
+```bash
+docker logs open-webui
+```
+
+Testar acesso do Docker ao Ollama:
+
+```bash
+docker exec open-webui curl http://host.docker.internal:11434/api/tags
+```
+
+Open WebUI:
+
+```text
+http://localhost:3000
+```
+
+---
+
+# Observação sobre a memória da GPU
 
 A Radeon Vega 8 é uma GPU integrada.
 
@@ -466,7 +859,11 @@ total="8.5 GiB"
 
 isso não significa que existem 8,5 GB de VRAM física dedicada.
 
-## Observação sobre ROCm
+A memória é compartilhada com os demais componentes do sistema.
+
+---
+
+# Observação sobre ROCm
 
 O log também apresentou:
 
@@ -507,13 +904,45 @@ driver Vulkan utilizado pela AMD no Linux
 
 Ollama
 ↓
-executa o modelo
+executa os modelos de IA
 
-Qwen 3.5 4B
+Open WebUI
 ↓
-modelo de IA
+interface gráfica para utilizar os modelos
+
+Docker
+↓
+executa o Open WebUI isoladamente
+
+Qwen / Ministral
+↓
+modelos de IA
 
 Resultado
 ↓
-Qwen 3.5 4B → Vulkan → Radeon Vega 8
+Open WebUI
+→ Docker
+→ Ollama
+→ Vulkan
+→ RADV
+→ Radeon Vega 8
+```
+
+## Configuração essencial
+
+```text
+Ollama
+    ↓
+OLLAMA_VULKAN=1
+OLLAMA_IGPU_ENABLE=1
+GGML_VK_VISIBLE_DEVICES=0
+OLLAMA_HOST=0.0.0.0:11434
+    ↓
+Radeon Vega 8 via Vulkan
+
+Open WebUI
+    ↓
+http://host.docker.internal:11434
+    ↓
+Ollama
 ```
